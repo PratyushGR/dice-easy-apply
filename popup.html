@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Keyword Manager</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f8f9fa;
+            color: #333;
+            width: 450px;
+            box-sizing: border-box;
+        }
+
+        h3 {
+            margin: 0 0 20px 0;
+            color: #2c3e50;
+            text-align: center;
+            font-size: 24px;
+        }
+
+        .collapsible {
+            background-color: #007bff;
+            color: white;
+            cursor: pointer;
+            padding: 15px;
+            width: 100%;
+            text-align: left;
+            font-size: 18px;
+            font-weight: bold;
+            border: none;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            transition: background-color 0.3s ease;
+        }
+
+        .collapsible:hover {
+            background-color: #0056b3;
+        }
+
+        .content {
+            padding: 15px;
+            margin-top: 5px;
+            display: none;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            border: 1px solid #dee2e6;
+        }
+
+        .section {
+            margin-bottom: 15px;
+        }
+
+        .input-group {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            border: 1px solid #dee2e6;
+            margin-bottom: 15px;
+        }
+
+        .input-group label {
+            font-size: 14px;
+            font-weight: bold;
+            color: #495057;
+            margin-bottom: 5px;
+            display: block;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 10px;
+            border-radius: 6px;
+            border: 1px solid #ced4da;
+            font-size: 14px;
+            margin-bottom: 10px;
+            box-sizing: border-box;
+        }
+
+        .buttons {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+
+        .button {
+            padding: 8px 12px;
+            font-size: 14px;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .update-button {
+            background-color: #28a745;
+            color: white;
+        }
+
+        .update-button:hover {
+            background-color: #218838;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+        }
+
+        .delete-button {
+            background-color: #dc3545;
+            color: white;
+        }
+
+        .delete-button:hover {
+            background-color: #c82333;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+        }
+
+        .add-button {
+            width: 100%;
+            padding: 12px;
+            font-size: 16px;
+            font-weight: bold;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            background-color: #ffc107;
+            color: #212529;
+            margin-top: 15px;
+            transition: background-color 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .add-button:hover {
+            background-color: #e0a800;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+        }
+
+        .start-button {
+            width: 100%;
+            padding: 12px;
+            font-size: 16px;
+            font-weight: bold;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            background-color: #007bff;
+            color: white;
+            margin-top: 15px;
+            transition: background-color 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .start-button:hover {
+            background-color: #0056b3;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+        }
+    </style>
+</head>
+<body>
+    <h3>Keyword Manager</h3>
+
+    <!-- Positions Section -->
+    <button class="collapsible">Positions</button>
+    <div class="content">
+        <div id="sectionsContainer"></div>
+        <button class="add-button" id="addButton">Add New Title</button>
+    </div>
+
+    <!-- Keywords to Avoid Section -->
+    <button class="collapsible">Keywords to Avoid</button>
+    <div class="content">
+        <div id="avoidContainer"></div>
+        <button class="add-button" id="addAvoidButton">Add Avoid Keywords</button>
+    </div>
+
+    <!-- Search Keywords Section -->
+    <button class="collapsible">Search Keywords</button>
+    <div class="content">
+        <div id="searchContainer"></div>
+        <button class="add-button" id="addSearchButton">Add Search Keywords</button>
+    </div>
+
+    <!-- Locations Section -->
+    <button class="collapsible">Locations</button>
+    <div class="content">
+        <div id="locationContainer"></div>
+        <button class="add-button" id="addLocationButton">Add Location</button>
+    </div>
+
+    <button class="start-button" id="startButton">Start</button>
+
+    <script src="popup.js"></script>
+    <script src="redirect.js"></script>
+</body>
+</html>

@@ -1,0 +1,15 @@
+{
+  "manifest_version": 3,
+  "name": "Keyword Checker with Save Feature",
+  "version": "1.0",
+  "description": "Check keywords in a file and save data for reuse.",
+  "permissions": ["scripting", "activeTab", "storage"],
+  "host_permissions": ["<all_urls>"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Open Keyword Checker"
+  }
+}
