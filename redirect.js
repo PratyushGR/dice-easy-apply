@@ -3,7 +3,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const applyButton = document.getElementById("applyButton");
 
     // URL to redirect to
-    const targetURL = "https://www.dice.com/jobs?q=devops&location=United%20States&page=1&pageSize=1000&filters.postedDate=ONE&filters.employmentType=CONTRACTS&language=en";
+    const targetURL = "https://www.dice.com/jobs?q=devops&location=United%20States&page=1&pageSize=1000&filters.postedDate=ONE&filters.employmentType=CONTRACTS&filters.easyApply=true&language=en";
 
     // Add click event listener to the "Start" button
     startButton.addEventListener("click", () => {
