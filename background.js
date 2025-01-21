@@ -16,7 +16,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                     const ids = result[0].result; // Collect IDs returned from the script
                     if (ids && ids.length > 0) {
                         console.log(`Collected ${ids.length} IDs:`, ids);
-                        navigateUrlsInSameTab(ids, activeTab.id, data.positions);
+                        processJobsSequentially(ids, activeTab.id, data.positions);
                     } else {
                         console.log("No IDs found.");
                     }
@@ -53,128 +53,124 @@ function processInputs(data) {
     return [];
 }
 
-function navigateUrlsInSameTab(ids, tabId, positions) {
+function processJobsSequentially(ids, tabId, positions) {
     const baseUrl = "https://www.dice.com/job-detail/";
     let index = 0;
 
-    const processNextUrl = () => {
-        if (index < ids.length) {
-            const url = `${baseUrl}${ids[index]}`;
-            console.log(`Navigating to: ${url}`);
-
-            chrome.tabs.update(tabId, { url }, () => {
-                const delay = Math.floor(Math.random() * 15000) + 4000; // Random delay between 1 and 5 seconds
-                console.log(`Waiting for ${delay}ms before extracting job description...`);
-
-                setTimeout(() => {
-                    chrome.scripting.executeScript({
-                        target: { tabId },
-                        function: extractJobDescription
-                    }).then((results) => {
-                        if (results && results[0]?.result) {
-                            const jobDescription = results[0].result;
-                            console.log(`Job Description for ${url}:`);
-                            console.log(jobDescription);
-
-                            // Find the position with the maximum keyword count
-                            const bestPosition = findMaxKeywordPosition(jobDescription, positions);
-                            if (bestPosition) {
-                                console.log(`Best-matching position for ${url}: "${bestPosition.title}"`);
-                                console.log(`Associated file path: ${bestPosition.filePath}`);
-
-                                // Click the Easy Apply button
-                                clickEasyApply(tabId);
-                            }
-                        } else {
-                            console.log(`No job description found for ${url}.`);
-                        }
-
-                        // Move to the next URL
-                        index++;
-                        processNextUrl();
-                    }).catch((error) => {
-                        console.error(`Error extracting job description for ${url}:`, error);
-
-                        // Move to the next URL even if extraction fails
-                        index++;
-                        processNextUrl();
-                    });
-                }, delay);
-            });
-        } else {
-            console.log("Finished navigating all URLs.");
-        }
-    };
-
-    // Start processing URLs
-    processNextUrl();
-}
-
-// Function to extract the job description
-function extractJobDescription() {
-    const jobDescriptionDiv = document.querySelector('div[data-testid="jobDescriptionHtml"]');
-    return jobDescriptionDiv ? jobDescriptionDiv.innerText.trim() : null;
-}
-
-// Function to click the Easy Apply button
-function clickEasyApply(tabId) {
-    chrome.scripting.executeScript({
-        target: { tabId },
-        function: attemptEasyApply
-    }).catch((error) => {
-        console.error("Error clicking Easy Apply button:", error);
-    });
-}
-
-// Function to find and click Easy Apply button in Shadow DOM
-function attemptEasyApply() {
-    console.log("Attempting to find Easy Apply button in shadow DOM...");
-    try {
-        const shadowHost = document.querySelector("apply-button-wc.hydrated");
-        if (!shadowHost) {
-            console.log("Shadow host element not found.");
+    const processNextJob = () => {
+        if (index >= ids.length) {
+            console.log("Finished processing all jobs.");
             return;
         }
 
-        const shadowRoot = shadowHost.shadowRoot;
-        const easyApplyButton = shadowRoot.querySelector("button.btn.btn-primary");
+        const url = `${baseUrl}${ids[index]}`;
+        console.log(`Navigating to: ${url}`);
 
-        if (easyApplyButton && easyApplyButton.innerText.toLowerCase().includes("easy apply")) {
-            easyApplyButton.click();
-            console.log("Successfully clicked Easy Apply button. Waiting for 5 minutes...");
+        // Navigate to the job URL
+        chrome.tabs.update(tabId, { url }, () => {
+            const delay = Math.floor(Math.random() * 15000) + 4000; // Random delay between 1 and 5 seconds
+            console.log(`Waiting for ${delay}ms before extracting job description...`);
+
             setTimeout(() => {
-                console.log("5 minutes wait completed.");
-            }, 5 * 60 * 1000); // Wait for 5 minutes
-        } else {
-            console.log("Easy Apply button not found - job might already be applied to.");
-        }
-    } catch (error) {
-        console.error("Error finding Easy Apply button in shadow DOM:", error);
-    }
+                // Extract job description
+                chrome.scripting.executeScript({
+                    target: { tabId },
+                    function: () => {
+                        const jobDescriptionDiv = document.querySelector('div[data-testid="jobDescriptionHtml"]');
+                        return jobDescriptionDiv ? jobDescriptionDiv.innerText.trim() : null;
+                    }
+                }).then((results) => {
+                    if (results && results[0]?.result) {
+                        const jobDescription = results[0].result;
+                        console.log(`Job Description for ${url}:`);
+                        console.log(jobDescription);
+
+                        // Find the best-matching position
+                        let maxCount = -1;
+                        let bestPosition = null;
+
+                        positions.forEach((position) => {
+                            const totalKeywords = position.keywords.reduce((count, keyword) => {
+                                const regex = new RegExp(`\\b${keyword.trim()}\\b`, 'gi');
+                                const matches = jobDescription.match(regex);
+                                return count + (matches ? matches.length : 0);
+                            }, 0);
+
+                            console.log(`Total keyword count for "${position.title}": ${totalKeywords}`);
+
+                            if (totalKeywords > maxCount) {
+                                maxCount = totalKeywords;
+                                bestPosition = position;
+                            }
+                        });
+
+                        if (bestPosition) {
+                            console.log(`Best-matching position for ${url}: "${bestPosition.title}"`);
+                            console.log(`Associated file path: ${bestPosition.filePath}`);
+
+                            // Click the Easy Apply button
+                            chrome.scripting.executeScript({
+                                target: { tabId },
+                                function: () => {
+                                    console.log("Attempting to find Easy Apply button in shadow DOM...");
+                                    try {
+                                        const shadowHost = document.querySelector("apply-button-wc.hydrated");
+                                        if (!shadowHost) {
+                                            console.log("Shadow host element not found.");
+                                            return false;
+                                        }
+
+                                        const shadowRoot = shadowHost.shadowRoot;
+                                        const easyApplyButton = shadowRoot.querySelector("button.btn.btn-primary");
+
+                                        if (easyApplyButton && easyApplyButton.innerText.toLowerCase().includes("easy apply")) {
+                                            easyApplyButton.click();
+                                            console.log("Successfully clicked Easy Apply button.");
+                                            return true;
+                                        } else {
+                                            console.log("Easy Apply button not found - job might already be applied to.");
+                                            return false;
+                                        }
+                                    } catch (error) {
+                                        console.error("Error finding Easy Apply button in shadow DOM:", error);
+                                        return false;
+                                    }
+                                }
+                            }).then(() => {
+                                // Wait for 7 seconds before moving to the next job
+                                console.log("Waiting for 7 seconds before processing the next job...");
+                                setTimeout(() => {
+                                    index++;
+                                    processNextJob(); // Process the next job after the wait
+                                }, 7000);
+                            }).catch((error) => {
+                                console.error("Error clicking Easy Apply button:", error);
+                                index++;
+                                processNextJob(); // Move to the next job even if clicking Easy Apply fails
+                            });
+                        } else {
+                            console.log("No matching position found.");
+                            index++;
+                            processNextJob(); // Move to the next job if no matching position
+                        }
+                    } else {
+                        console.log(`No job description found for ${url}.`);
+                        index++;
+                        processNextJob(); // Move to the next job if no description is found
+                    }
+                }).catch((error) => {
+                    console.error(`Error processing ${url}:`, error);
+                    index++;
+                    processNextJob(); // Move to the next job even if there's an error
+                });
+            }, delay);
+        });
+    };
+
+    // Start processing jobs
+    processNextJob();
 }
 
-// Function to find the position with the maximum keyword count
-function findMaxKeywordPosition(jobDescription, positions) {
-    let maxCount = -1;
-    let bestPosition = null;
-
-    positions.forEach((position) => {
-        const totalKeywords = position.keywords.reduce((count, keyword) => {
-            const regex = new RegExp(`\\b${keyword.trim()}\\b`, 'gi'); // Match whole words, case-insensitive
-            const matches = jobDescription.match(regex);
-            return count + (matches ? matches.length : 0);
-        }, 0);
-
-        console.log(`Total keyword count for "${position.title}": ${totalKeywords}`);
-
-        if (totalKeywords > maxCount) {
-            maxCount = totalKeywords;
-            bestPosition = position;
-        }
-    });
-
-    return bestPosition;
-}
 
 
 
