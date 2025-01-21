@@ -63,7 +63,7 @@ function navigateUrlsInSameTab(ids, tabId, positions) {
             console.log(`Navigating to: ${url}`);
 
             chrome.tabs.update(tabId, { url }, () => {
-                const delay = Math.floor(Math.random() * 5000) + 1000; // Random delay between 1 and 5 seconds
+                const delay = Math.floor(Math.random() * 15000) + 4000; // Random delay between 1 and 5 seconds
                 console.log(`Waiting for ${delay}ms before extracting job description...`);
 
                 setTimeout(() => {
@@ -82,34 +82,16 @@ function navigateUrlsInSameTab(ids, tabId, positions) {
                                 console.log(`Best-matching position for ${url}: "${bestPosition.title}"`);
                                 console.log(`Associated file path: ${bestPosition.filePath}`);
 
-                                // Click the Easy Apply button after processing the description
-                                chrome.scripting.executeScript({
-                                    target: { tabId },
-                                    function: clickEasyApplyButton,
-                                }).then(() => {
-                                    console.log(`Clicked the Easy Apply button for ${url}.`);
-                                    setTimeout(() => {
-                                        // Proceed to the next URL after waiting for 10 seconds
-                                        index++;
-                                        processNextUrl();
-                                    }, 10000);
-                                }).catch((error) => {
-                                    console.error(`Error clicking the Easy Apply button for ${url}:`, error);
-
-                                    // Move to the next URL even if the click fails
-                                    index++;
-                                    processNextUrl();
-                                });
-                            } else {
-                                console.log(`No matching position found for ${url}.`);
-                                index++;
-                                processNextUrl();
+                                // Click the Easy Apply button
+                                clickEasyApply(tabId);
                             }
                         } else {
                             console.log(`No job description found for ${url}.`);
-                            index++;
-                            processNextUrl();
                         }
+
+                        // Move to the next URL
+                        index++;
+                        processNextUrl();
                     }).catch((error) => {
                         console.error(`Error extracting job description for ${url}:`, error);
 
@@ -135,19 +117,39 @@ function extractJobDescription() {
 }
 
 // Function to click the Easy Apply button
-function clickEasyApplyButton() {
-    const easyApplyButton = document.evaluate(
-        "//div[@id='applyButton']/apply-button-wc",
-        document,
-        null,
-        XPathResult.FIRST_ORDERED_NODE_TYPE,
-        null
-    ).singleNodeValue;
+function clickEasyApply(tabId) {
+    chrome.scripting.executeScript({
+        target: { tabId },
+        function: attemptEasyApply
+    }).catch((error) => {
+        console.error("Error clicking Easy Apply button:", error);
+    });
+}
 
-    if (easyApplyButton) {
-        easyApplyButton.click();
-    } else {
-        console.error("Easy Apply button not found.");
+// Function to find and click Easy Apply button in Shadow DOM
+function attemptEasyApply() {
+    console.log("Attempting to find Easy Apply button in shadow DOM...");
+    try {
+        const shadowHost = document.querySelector("apply-button-wc.hydrated");
+        if (!shadowHost) {
+            console.log("Shadow host element not found.");
+            return;
+        }
+
+        const shadowRoot = shadowHost.shadowRoot;
+        const easyApplyButton = shadowRoot.querySelector("button.btn.btn-primary");
+
+        if (easyApplyButton && easyApplyButton.innerText.toLowerCase().includes("easy apply")) {
+            easyApplyButton.click();
+            console.log("Successfully clicked Easy Apply button. Waiting for 5 minutes...");
+            setTimeout(() => {
+                console.log("5 minutes wait completed.");
+            }, 5 * 60 * 1000); // Wait for 5 minutes
+        } else {
+            console.log("Easy Apply button not found - job might already be applied to.");
+        }
+    } catch (error) {
+        console.error("Error finding Easy Apply button in shadow DOM:", error);
     }
 }
 
@@ -173,4 +175,6 @@ function findMaxKeywordPosition(jobDescription, positions) {
 
     return bestPosition;
 }
+
+
 
