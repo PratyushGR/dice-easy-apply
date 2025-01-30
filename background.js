@@ -75,34 +75,40 @@ async function processJobsSequentially(ids, tabId, positions) {
         console.log(jobDescription);
 
         // Find the best-matching position
+        console.log(positions)
         const bestPosition = findBestPosition(jobDescription, positions);
         if (!bestPosition) {
             console.log(`No matching position found for ${url}.`);
             continue; // Skip to the next job
         }
+        
 
         console.log(`Best-matching position for ${url}: "${bestPosition.title}"`);
         console.log(`Associated file path: ${bestPosition.filePath}`);
-
-        // Click the Easy Apply button
         await sleep(5000)
-        const easyApplyClicked = await clickEasyApply(tabId);
-        await sleep(15000);
-        if (easyApplyClicked) {
-            console.log("Successfully clicked Easy Apply button. Waiting for the next job...");
-            const resumeUploaded = await uploadResume(tabId, bestPosition.filePath);
-            if (resumeUploaded) {
-                console.log(`Resume uploaded successfully from path: ${bestPosition.filePath}`);
-            } else {
-                console.log("Failed to upload resume.");
-            }
+
+        if (bestPosition === positions[0]){
+            console.log("The best position is the default position proceeding to perform easy apply");
+        // Click the Easy Apply button
+            const easyApplyClicked = await clickEasyApply(tabId);
             await sleep(15000);
+            if (easyApplyClicked) {
+                console.log("Successfully clicked Easy Apply button. Waiting for the next job...");
+                await sleep(5000);
+                await clickNextButton(tabId);
+                await sleep(5000);
+                await clickSubmitButton(tabId);
+                await sleep[5000]
+            } else {
+                console.log("Easy Apply button not found or already applied.");
+            }
+            const currentTab = await getCurrentTabUrl(tabId);
+            console.log(`The current tab URL after Easy Apply: ${currentTab}`);
+            // Function to get the current URL of a tab
         } else {
-            console.log("Easy Apply button not found or already applied.");
+            console.log("The best position is not the default one");
         }
-        const currentTab = await getCurrentTabUrl(tabId);
-        console.log(`The current tab URL after Easy Apply: ${currentTab}`);
-        // Function to get the current URL of a tab
+
     }
 
     console.log("Finished processing all jobs.");
@@ -216,76 +222,96 @@ function getCurrentTabUrl(tabId) {
     });
 }
 
-function uploadResume(tabId, filePath) {
-    return new Promise((resolve, reject) => {
+
+async function clickNextButton(tabId) {
+    try {
+        const nextButtonClicked = await clickButton(
+            tabId,
+            "//span[text()='Next']",
+            "xpath",
+            "Looking for Next button...",
+            "Clicking Next button..."
+        );
+        if (nextButtonClicked) {
+            console.log("Next button clicked successfully.");
+            return true;
+        } else {
+            console.log("Next button not found or could not be clicked.");
+            return false;
+        }
+    } catch (error) {
+        console.error("Error while clicking Next button:", error);
+        return false;
+    }
+}
+
+async function clickSubmitButton(tabId) {
+    try {
+        const submitButtonClicked = await clickButton(
+            tabId,
+            "button.seds-button-primary.btn-next",
+            "css",
+            "Looking for Submit button...",
+            "Clicking Submit button..."
+        );
+        if (submitButtonClicked) {
+            console.log("Submit button clicked successfully.");
+            return true;
+        } else {
+            console.log("Submit button not found or could not be clicked.");
+            return false;
+        }
+    } catch (error) {
+        console.error("Error while clicking Submit button:", error);
+        return false;
+    }
+}
+
+// Shared helper function to click a button
+function clickButton(tabId, selector, selectorType, lookingMessage, clickingMessage) {
+    return new Promise((resolve) => {
+        console.log(lookingMessage);
+
         chrome.scripting.executeScript(
             {
                 target: { tabId },
-                args: [filePath],
-                function: (filePath) => {
+                args: [selector, selectorType, clickingMessage],
+                function: (selector, selectorType, clickingMessage) => {
                     try {
-                        console.log("Attempting to replace the resume...");
+                        let button;
+                        if (selectorType === "xpath") {
+                            const xpathResult = document.evaluate(
+                                selector,
+                                document,
+                                null,
+                                XPathResult.FIRST_ORDERED_NODE_TYPE,
+                                null
+                            );
+                            button = xpathResult.singleNodeValue;
+                        } else if (selectorType === "css") {
+                            button = document.querySelector(selector);
+                        }
 
-                        // Look for the replace button
-                        let replaceButton = document.querySelector(
-                            "button.file-remove, div.file-interactions button"
-                        );
-
-                        if (!replaceButton) {
-                            console.error("Replace button not found.");
+                        if (!button) {
+                            console.log("Button not found:", selector);
                             return false;
                         }
 
-                        console.log("Clicking the replace button...");
-                        replaceButton.click();
-
-                        // Wait for the file input to appear
-                        const fileInput = document.querySelector("input[type='file']");
-                        if (!fileInput) {
-                            console.error("File input not found after clicking replace.");
-                            return false;
-                        }
-
-                        console.log(`Uploading resume from: ${filePath}`);
-                        fileInput.value = filePath; // Simulate the upload action
-                        const uploadEvent = new Event("change");
-                        fileInput.dispatchEvent(uploadEvent);
-
-                        // Look for the Upload button
-                        let uploadButton = document.querySelector(
-                            "span.fsp-button.fsp-button--primary.fsp-button-upload[data-e2e='upload']"
-                        );
-
-                        if (!uploadButton) {
-                            console.error("Upload button not found. Attempting backup method...");
-                            // Backup: Try clicking the upload button using JavaScript
-                            const uploadSuccess = document.querySelector('span[data-e2e="upload"]');
-                            if (uploadSuccess) {
-                                uploadSuccess.click();
-                                console.log("Clicked upload button using JavaScript.");
-                                return true;
-                            }
-                            console.error("Failed to find the Upload button via backup method.");
-                            return false;
-                        }
-
-                        console.log("Clicking the Upload button...");
-                        uploadButton.click();
-
-                        console.log("Resume replacement successful!");
+                        console.log(clickingMessage);
+                        button.click();
                         return true;
                     } catch (error) {
-                        console.error("Error replacing resume:", error);
+                        console.error("Error clicking button:", error);
                         return false;
                     }
-                },
+                }
             },
             (results) => {
                 if (chrome.runtime.lastError) {
-                    console.error("Error in uploadResume script:", chrome.runtime.lastError);
-                    reject(false);
+                    console.error("Error executing script:", chrome.runtime.lastError.message);
+                    resolve(false);
                 } else {
-                    resolve(results && results[0]?.result);
+                    resolve(results[0]?.result || false);
                 }
             }
         );
